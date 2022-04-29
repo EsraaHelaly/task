@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:task/persentation/screens/phone_screen.dart';
+import 'package:task/persentation/screens/Login_screen.dart';
 
 import 'business_logic/cubit/phone_auth_cubit.dart';
 import 'constants/strings.dart';
