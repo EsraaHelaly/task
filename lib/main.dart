@@ -1,6 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:task/persentation/screens/Login_screen.dart';
 
 import 'app_router.dart';
 import 'constants/strings.dart';
