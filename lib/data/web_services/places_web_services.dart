@@ -28,12 +28,30 @@ class PlacesWebServices {
         'sessiontoken': sessionToken,
         'components': 'country:eg',
       });
-      print(response.statusCode);
-      print('predictions${response.data['predictions']}');
+      // print(response.statusCode);
+      // print('predictions${response.data['predictions']}');
       return response.data['predictions'];
     } catch (error) {
-      print('fetchSuggestionPlaces $error');
+      // print('fetchSuggestionPlaces $error');
       rethrow;
+    }
+  }
+
+  Future<dynamic> getPlaceLocation(String placeId, String sessionToken) async {
+    try {
+      Response response =
+          await _dio.get(placeLocationBaseURL, queryParameters: {
+        'place_id': placeId,
+        'fields': 'geometry',
+        'key': googleAPIKey,
+        'sessiontoken': sessionToken,
+      });
+      print(response.statusCode);
+      print('result${response.data}');
+      return response.data;
+    } catch (error) {
+      return Future.error(
+          'place location error', StackTrace.fromString('this is its trace'));
     }
   }
 }

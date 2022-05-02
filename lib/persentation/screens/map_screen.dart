@@ -12,6 +12,7 @@ import 'package:task/helper/location_helper.dart';
 import 'package:task/persentation/widgets/my_drawer.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../data/models/place_details_model.dart';
 import '../widgets/place_item.dart';
 
 class MapScreen extends StatefulWidget {
@@ -40,16 +41,39 @@ class _MapScreenState extends State<MapScreen> {
     tilt: 0.0,
   );
 
-  Future<void> _getMyCurrentLocation() async {
-    _position = await _locationHelper.detectCurrentLocation().whenComplete((() {
-      setState(() {});
-    }));
+  //Variables for getPlaceLocation
+
+  //A collection of objects in which each object can occur only once.
+  final Set<Marker> _markers = {};
+  late PlaceSuggestionModel _placeSuggestionModel;
+  late PlaceDetailsModel _selectedPlaceModel;
+  late Marker _searchedMarker;
+  late Marker _currentMarker;
+
+  late CameraPosition _goToSearchedForPlaceCameraPosition;
+
+  void _buildCameraNewPosition() {
+    _goToSearchedForPlaceCameraPosition = CameraPosition(
+      target: LatLng(
+        _selectedPlaceModel.result.geometry.location.lat,
+        _selectedPlaceModel.result.geometry.location.lat,
+      ),
+      zoom: 13,
+      bearing: 0.0,
+      tilt: 0.0,
+    );
   }
 
   @override
   initState() {
     super.initState();
     _getMyCurrentLocation();
+  }
+
+  Future<void> _getMyCurrentLocation() async {
+    _position = await _locationHelper.detectCurrentLocation().whenComplete((() {
+      setState(() {});
+    }));
   }
 
   Widget _buildMap() {
@@ -61,6 +85,7 @@ class _MapScreenState extends State<MapScreen> {
       onMapCreated: (GoogleMapController googleMapController) {
         _mapController.complete(googleMapController);
       },
+      markers: _markers,
     );
   }
 
@@ -108,6 +133,7 @@ class _MapScreenState extends State<MapScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               buildSuggestionsBloc(),
+              _buildSelectedPlaceLocationBloc(),
             ],
           ),
         );
@@ -153,7 +179,7 @@ class _MapScreenState extends State<MapScreen> {
       builder: (context, state) {
         if (state is PlacesLoaded) {
           suggestionsPlacesList = (state).places;
-          if (suggestionsPlacesList.length != 0) {
+          if (suggestionsPlacesList.isNotEmpty) {
             return _buildPlacesList();
           } else {
             return Container();
@@ -172,9 +198,11 @@ class _MapScreenState extends State<MapScreen> {
       itemCount: suggestionsPlacesList.length,
       itemBuilder: (BuildContext context, int index) {
         return InkWell(
-          onTap: () {
-            //TODO::Go to marker in this place
+          onTap: () async {
+            //get placeId of the tapped item in the list
+            _placeSuggestionModel = suggestionsPlacesList[index];
             _floatingSearchBarController.close();
+            _getSelectedPlaceLocation();
           },
           child: BuildPlaceItem(suggestion: suggestionsPlacesList[index]),
         );
@@ -188,5 +216,64 @@ class _MapScreenState extends State<MapScreen> {
 
     BlocProvider.of<MapsCubit>(context)
         .emitSuggestionsPlaces(query, sessionToken);
+  }
+
+  void _getSelectedPlaceLocation() {
+    final sessionToken = const Uuid().v4();
+    BlocProvider.of<MapsCubit>(context)
+        .emitPlaceLocation(_placeSuggestionModel.placeId, sessionToken);
+  }
+
+  Widget _buildSelectedPlaceLocationBloc() {
+    return BlocListener<MapsCubit, MapsState>(
+      listener: (context, state) {
+        if (state is PlaceDetailsLoaded) {
+          _selectedPlaceModel = (state).place;
+
+          _goToMySearchedForLocation();
+        }
+      },
+      child: Container(),
+    );
+  }
+
+  Future<void> _goToMySearchedForLocation() async {
+    _buildCameraNewPosition();
+    //to controll map
+    final GoogleMapController _googleMapController =
+        await _mapController.future;
+    _googleMapController.animateCamera(
+        CameraUpdate.newCameraPosition(_goToSearchedForPlaceCameraPosition));
+
+    _buildSearchedPlaceMarker();
+  }
+
+  void _buildSearchedPlaceMarker() {
+    _searchedMarker = Marker(
+      markerId: const MarkerId('2'),
+      infoWindow: InfoWindow(title: _placeSuggestionModel.description),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      position: _goToSearchedForPlaceCameraPosition.target,
+      onTap: _buildCurrentLocationMarker,
+    );
+
+    _addMarkerToMarkersSetAndUpdateUI(_searchedMarker);
+  }
+
+  void _buildCurrentLocationMarker() {
+    _currentMarker = Marker(
+      markerId: const MarkerId('1'),
+      infoWindow: const InfoWindow(title: 'My Current Location'),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      position: LatLng(_position!.latitude, _position!.longitude),
+      onTap: () {},
+    );
+    _addMarkerToMarkersSetAndUpdateUI(_currentMarker);
+  }
+
+  void _addMarkerToMarkersSetAndUpdateUI(Marker marker) {
+    setState(() {
+      _markers.add(marker);
+    });
   }
 }
