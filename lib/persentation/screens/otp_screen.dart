@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import 'package:task/persentation/screens/home_screen.dart';
+import 'package:task/constants/strings.dart';
 
-import '../../business_logic/cubit/phone_auth_cubit.dart';
+import '../../business_logic/cubit/phone_auth/phone_auth_cubit.dart';
 import '../../constants/colors.dart';
 import '../widgets/show_progress_indecator.dart';
 
@@ -103,10 +103,7 @@ class OtpScreen extends StatelessWidget {
 
         if (state is PhoneOTPVerified) {
           Navigator.pop(context);
-          Navigator.of(context)
-              .pushReplacement(MaterialPageRoute(builder: (context) {
-            return const HomeScreen();
-          }));
+          Navigator.of(context).pushReplacementNamed(mapScreen);
         }
 
         if (state is ErrorOccurred) {

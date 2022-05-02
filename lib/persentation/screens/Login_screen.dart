@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../business_logic/cubit/phone_auth_cubit.dart';
-
+import '../../business_logic/cubit/phone_auth/phone_auth_cubit.dart';
 import '../../constants/strings.dart';
 import '../widgets/show_progress_indecator.dart';
 
