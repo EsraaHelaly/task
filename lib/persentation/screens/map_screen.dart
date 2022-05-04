@@ -7,8 +7,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:material_floating_search_bar/material_floating_search_bar.dart';
 import 'package:task/business_logic/cubit/maps/maps_cubit.dart';
 import 'package:task/constants/colors.dart';
+import 'package:task/data/models/place_directions.dart';
 import 'package:task/data/models/place_suggestion_model.dart';
 import 'package:task/helper/location_helper.dart';
+import 'package:task/persentation/widgets/distance_and_time.dart';
 import 'package:task/persentation/widgets/my_drawer.dart';
 import 'package:uuid/uuid.dart';
 
@@ -41,7 +43,7 @@ class _MapScreenState extends State<MapScreen> {
     tilt: 0.0,
   );
 
-  //Variables for getPlaceLocation
+  //these Variables for getPlaceLocation
 
   //A collection of objects in which each object can occur only once.
   final Set<Marker> _markers = {};
@@ -63,6 +65,15 @@ class _MapScreenState extends State<MapScreen> {
       tilt: 0.0,
     );
   }
+
+  //these Variables for getDirections
+  PlaceDirections? placeDirections;
+  var progressIndecator = false;
+  late List<LatLng> _polylinePoints;
+  var _isSearcherPlaceMarkerClicked = false;
+  var isTimeAndDistanceVisible = false;
+  late String _time;
+  late String _distance;
 
   @override
   initState() {
@@ -86,6 +97,16 @@ class _MapScreenState extends State<MapScreen> {
         _mapController.complete(googleMapController);
       },
       markers: _markers,
+      polylines: placeDirections != null
+          ? {
+              Polyline(
+                polylineId: const PolylineId('Mypolyline'),
+                color: Colors.black,
+                width: 2,
+                points: _polylinePoints,
+              ),
+            }
+          : {},
     );
   }
 
@@ -100,6 +121,12 @@ class _MapScreenState extends State<MapScreen> {
               ? _buildMap()
               : const Center(child: CircularProgressIndicator()),
           _buildFloatingSearchBar(),
+          _isSearcherPlaceMarkerClicked
+              ? DistanceAndTime(
+                  isTimeAndDistanceVisible: isTimeAndDistanceVisible,
+                  placeDirections: placeDirections,
+                )
+              : Container(),
         ],
       ),
       floatingActionButton: Container(
@@ -134,6 +161,7 @@ class _MapScreenState extends State<MapScreen> {
             children: [
               buildSuggestionsBloc(),
               _buildSelectedPlaceLocationBloc(),
+              _buildDirectionsBloc(),
             ],
           ),
         );
@@ -155,12 +183,19 @@ class _MapScreenState extends State<MapScreen> {
       axisAlignment: _isPortrait ? 0.0 : -1.0,
       openAxisAlignment: 0.0,
       width: _isPortrait ? 600 : 500,
+      progress: progressIndecator,
 
       //invoked when each char is changed in query
       onQueryChanged: (query) {
         _getPlaceSuggestions(query);
       },
-      onFocusChanged: (_) {},
+      onFocusChanged: (_) {
+        //hide time and distance
+
+        setState(() {
+          isTimeAndDistanceVisible = false;
+        });
+      },
       transition: CircularFloatingSearchBarTransition(),
       actions: [
         FloatingSearchBarAction(
@@ -203,6 +238,11 @@ class _MapScreenState extends State<MapScreen> {
             _placeSuggestionModel = suggestionsPlacesList[index];
             _floatingSearchBarController.close();
             _getSelectedPlaceLocation();
+
+            //to clear the polylinePoints on map when we search for new place
+            _polylinePoints.clear();
+
+            _removeAllMarkersAndUpdateUI();
           },
           child: BuildPlaceItem(suggestion: suggestionsPlacesList[index]),
         );
@@ -231,6 +271,9 @@ class _MapScreenState extends State<MapScreen> {
           _selectedPlaceModel = (state).place;
 
           _goToMySearchedForLocation();
+
+          //عايز اجهزها قبل ما اروح ل المكان بخطوه
+          _getDirections();
         }
       },
       child: Container(),
@@ -254,7 +297,16 @@ class _MapScreenState extends State<MapScreen> {
       infoWindow: InfoWindow(title: _placeSuggestionModel.description),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       position: _goToSearchedForPlaceCameraPosition.target,
-      onTap: _buildCurrentLocationMarker,
+      onTap: () {
+        _buildCurrentLocationMarker();
+
+        //show time and distance
+
+        setState(() {
+          _isSearcherPlaceMarkerClicked = true;
+          isTimeAndDistanceVisible = true;
+        });
+      },
     );
 
     _addMarkerToMarkersSetAndUpdateUI(_searchedMarker);
@@ -262,7 +314,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _buildCurrentLocationMarker() {
     _currentMarker = Marker(
-      markerId: const MarkerId('1'),
+      markerId: const MarkerId('2'),
       infoWindow: const InfoWindow(title: 'My Current Location'),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       position: LatLng(_position!.latitude, _position!.longitude),
@@ -274,6 +326,40 @@ class _MapScreenState extends State<MapScreen> {
   void _addMarkerToMarkersSetAndUpdateUI(Marker marker) {
     setState(() {
       _markers.add(marker);
+    });
+  }
+
+  Widget _buildDirectionsBloc() {
+    return BlocListener<MapsCubit, MapsState>(
+      listener: (context, state) {
+        if (state is DirectionsLoaded) {
+          placeDirections = (state).placeDirections;
+
+          _getPolylinePoints();
+        }
+      },
+      child: Container(),
+    );
+  }
+
+  void _getPolylinePoints() {
+    _polylinePoints = placeDirections!.polylinePoints
+        .map((e) => LatLng(e.latitude, e.longitude))
+        .toList();
+  }
+
+  void _getDirections() {
+    BlocProvider.of<MapsCubit>(context).emitPlaceDirections(
+      LatLng(_position!.latitude, _position!.longitude), //origin
+      LatLng(
+          _selectedPlaceModel.result.geometry.location.lat, //destination
+          _selectedPlaceModel.result.geometry.location.lng),
+    );
+  }
+
+  void _removeAllMarkersAndUpdateUI() {
+    setState(() {
+      _markers.clear();
     });
   }
 }

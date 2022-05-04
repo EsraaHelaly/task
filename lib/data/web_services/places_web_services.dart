@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../constants/strings.dart';
 
@@ -45,6 +46,25 @@ class PlacesWebServices {
         'fields': 'geometry',
         'key': googleAPIKey,
         'sessiontoken': sessionToken,
+      });
+      // print(response.statusCode);
+      // print('result${response.data}');
+      return response.data;
+    } catch (error) {
+      return Future.error(
+          'place location error', StackTrace.fromString('this is its trace'));
+    }
+  }
+
+//origin equals current location
+//destination equals searched for location
+
+  Future<dynamic> getDirections(LatLng origin, LatLng destination) async {
+    try {
+      Response response = await _dio.get(directionsBaseUrl, queryParameters: {
+        'origin': '${origin.latitude},${origin.longitude}',
+        'destination': '${destination.latitude},${destination.longitude}',
+        'key': googleAPIKey,
       });
       print(response.statusCode);
       print('result${response.data}');
